@@ -3,9 +3,7 @@ import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
-
 from flask import Flask, jsonify
-from sqlalchemy.sql.selectable import DeprecatedSelectBaseGenerations
 
 #################################################
 # Database Setup
@@ -32,13 +30,26 @@ app = Flask(__name__)
 
 @app.route("/")
 def Home():
-    """Available API Routes"""
+    """Welcome!"""
+    """Here are the available API Routes:"""
     return(
+        """Return all precipitation results:<br>"""
         f"/api/v1.0/precipitation<br>"
+        """<br>"""
+        """Return a list of all stations in dataset:<br>"""
         f"/api/v1.0/stations<br>"
+        """<br>"""
+        """Return the dates and temperature from the Waihee Station:<br>"""
         f"/api/v1.0/tobs<br>"
-        f"/api/v1.0/<start><br>"
-        f"/api/v1.0/<start>/<end><br>"
+        """<br>"""
+        """Return a list of min/max/avg temp for a start date:<br>"""
+        """Date Format:[YYYY-MM-DD]"""
+        """<br>"""
+        f"/api/v1.0/[start date]<br>"
+        """<br>"""
+        """Return a list of min/max/avg temp for a start-end date range:<br>"""
+        """Date Format:[YYYY-MM-DD]<br>"""
+        f"/api/v1.0/[start date]/[end date]<br>"
     )
 
 #################################################
@@ -46,7 +57,7 @@ def Home():
 #covert query results to a dict using date as the key and prcp as the value
 #return json of your dict
 def precipitation():
-    """Returns precipitation data """
+    
     #create session link
     session=Session(engine)
     #query results to a dict
@@ -54,10 +65,10 @@ def precipitation():
     session.close()
 
     prcps= []
-    for prcp in prcp_results:
+    for date, prcp in prcp_results:
         prcp_dict={}
-        prcp_dict['Date']= Measurement.date
-        prcp_dict['PRCP']= Measurement.prcp
+        prcp_dict['Date']= date
+        prcp_dict['PRCP']= prcp
         prcps.append(prcp_dict)
 
     return jsonify(prcps)
@@ -67,12 +78,15 @@ def precipitation():
 @app.route("/api/v1.0/stations")
 #return a json of stations from dataset
 def stations():
-    """visible comment"""
+
     session=Session(engine)
-    station_results= session.query(Station.station, Station.name).all()
+    station_results= session.query(Station.station, Station.name).\
+        order_by(Station.station).all()
     session.close()
-    
-    return jsonify(station_results)
+    #covert list of tuples into a regular list
+    stations= list(np.ravel(station_results))
+
+    return jsonify(stations)
 
 
 #################################################
@@ -80,27 +94,43 @@ def stations():
 #query dates and temp observations of the most active station for the last year of data
 #return a json list of temp observations (TOBS) for the previous year
 def tobs():
-    """visible comment"""
+    
     session= Session(engine)
     most_active= 'USC00519281'
-    tob_results= session.query(Measurement.date, Measurement.station, Measurement.tobs).\
-        filter(Measurement.date> '2016-8-23').filter(Measurement.station == most_active).\
+    tob_results= session.query(Measurement.date, Measurement.tobs).\
+        filter(Measurement.date > '2016-8-23').filter(Measurement.station == 'USC00519281').\
         order_by(Measurement.date).all()
-    return jsonify(tob_results)
+    session.close()
+
+    tob_list= []
+    for date, tobs in tob_list:
+        tob_dict={}
+        tob_dict['Date']= date
+        #tob_dict['Station']= station
+        tob_dict['TOBS']= tobs
+        tob_list.append(tob_dict)
+
+    return jsonify(tob_list)
 
 
 #################################################
-#@app.route("/api/v1.0/<start>")
+@app.route("/api/v1.0/<start>")
 #return a json of min/max/avg temp for a given start or start-end range
 #when given the start only, calculate the TMIN, TAVG, and TMAX for all dates greater
 #---than or equal to the start date
+def start():
+    session=Session(engine)
+    stats_start= session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs),.\
+        func.max(Measurement.tobs).filter(Measurement.date >= start).all()
+    session.close()
 
-
+    start_list=[]
+    
 
 
 #@app.route("/api/v1.0/<start>/<end>")
 #when given the start and end date, calculate the TMIN, TAVG, and TMAX for dates
 #---between the start and end date
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
