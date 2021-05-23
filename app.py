@@ -44,13 +44,13 @@ def Home():
         f"/api/v1.0/tobs<br>"
         """<br>"""
         """Return a list of min/max/avg temp for a start date:<br>"""
-        """Date Format:[YYYY-MM-DD]"""
+        """Date Format:YYYY-MM-DD"""
         """<br>"""
-        f"/api/v1.0/[start date]<br>"
+        f"/api/v1.0/start date<br>"
         """<br>"""
         """Return a list of min/max/avg temp for a start-end date range:<br>"""
-        """Date Format:[YYYY-MM-DD]<br>"""
-        f"/api/v1.0/[start date]/[end date]<br>"
+        """Date Format:YYYY-MM-DD<br>"""
+        f"/api/v1.0/start_date/end_date<br>"
     )
 
 #################################################
@@ -136,9 +136,24 @@ def startdate(start):
     return jsonify(start_list)
 
 
-#@app.route("/api/v1.0/<start>/<end>")
+@app.route("/api/v1.0/<start_date>/<end_date>")
 #when given the start and end date, calculate the TMIN, TAVG, and TMAX for dates
 #---between the start and end date
+def start_end_date(start_date, end_date):
+    session=Session(engine)
+    start_end_results= session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs),\
+        func.max(Measurement.tobs).filter(Measurement.date >= start_date, Measurement.date <= end_date)).all()
+    session.close()
+
+    start_end_list=[]
+    for min, avg, max in start_end_results:
+        start_end_dict={}
+        start_end_dict["Min"]=min
+        start_end_dict['Max']=max
+        start_end_dict['Avg']=avg
+        start_end_list.append(start_end_dict)
+    
+    return jsonify(start_end_list)
 
 if __name__ == "__main__":
     app.run(debug=True)
