@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.lib.function_base import average
 import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
@@ -103,7 +104,7 @@ def tobs():
     session.close()
 
     tob_list= []
-    for date, tobs in tob_list:
+    for date, tobs in tob_results:
         tob_dict={}
         tob_dict['Date']= date
         #tob_dict['Station']= station
@@ -118,14 +119,21 @@ def tobs():
 #return a json of min/max/avg temp for a given start or start-end range
 #when given the start only, calculate the TMIN, TAVG, and TMAX for all dates greater
 #---than or equal to the start date
-def start():
+def startdate(start):
     session=Session(engine)
-    stats_start= session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs),.\
-        func.max(Measurement.tobs).filter(Measurement.date >= start).all()
+    start_results= session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs),\
+        func.max(Measurement.tobs).filter(Measurement.date >= start)).all()
     session.close()
 
     start_list=[]
-    
+    for min, avg, max in start_results:
+        start_dict={}
+        start_dict["Min"]=min
+        start_dict['Max']=max
+        start_dict['Avg']=avg
+        start_list.append(start_dict)
+
+    return jsonify(start_list)
 
 
 #@app.route("/api/v1.0/<start>/<end>")
